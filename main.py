@@ -10,7 +10,7 @@ from handlers import router
 
 # ================== CONFIG ==================
 # Render / Railway / VPS তে Environment Variable হিসেবে সেট করবেন
-BOT_TOKEN = os.getenv("BOT_TOKEN") or "YOUR_BOT_TOKEN_HERE"
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "8260629531:AAHeqwYHFsLb_oh_Lpir3k7BKapOG-bxhmo"
 
 
 async def main():
