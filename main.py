@@ -9,8 +9,8 @@ from aiogram.enums import ParseMode
 from handlers import router
 
 # ================== CONFIG ==================
-# Render / Railway / VPS তে Environment Variable হিসেবে সেট করবেন
 BOT_TOKEN = os.getenv("BOT_TOKEN") or "8260629531:AAHeqwYHFsLb_oh_Lpir3k7BKapOG-bxhmo"
+ADMIN_ID = int(os.getenv("ADMIN_ID") or "6640939571")
 
 
 async def main():
@@ -26,6 +26,7 @@ async def main():
     dp.include_router(router)
 
     print("🚀 Bot is starting...")
+    print(f"✅ Admin ID: {ADMIN_ID}")
     await dp.start_polling(bot)
 
 
