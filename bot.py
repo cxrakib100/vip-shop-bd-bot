@@ -5,8 +5,8 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 # === আপনার তথ্যগুলো এখানে বসান ===
-BOT_TOKEN = "এখানে_আপনার_BOT_TOKEN_বসাবেন"
-ADMIN_ID = 123456789  # এখানে আপনার userinfobot থেকে পাওয়া সংখ্যা আইডি বসাবেন (উদ্ধৃতি চিহ্ন ছাড়া)
+BOT_TOKEN = "8260629531:AAHeqwYHFsLb_oh_Lpir3k7BKapOG-bxhmo"
+ADMIN_ID = 6640939571  # এখানে আপনার userinfobot থেকে পাওয়া সংখ্যা আইডি বসাবেন (উদ্ধৃতি চিহ্ন ছাড়া)
 DATABASE_URL = "postgresql://postgres.qbkzinaypjnkanrwsbpc:Zxcv%40123%40123%401233@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
 
 # আপনার বিকাশ, নগদ ও রকেট নাম্বার
