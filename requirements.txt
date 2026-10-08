@@ -1,3 +1,1 @@
-pyTelegramBotAPI
-psycopg2-binary
-flask
+aiogram==3.13.1
