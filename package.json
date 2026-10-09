@@ -1,7 +1,7 @@
 {
   "name": "vip-shop-bd-bot",
   "version": "1.0.0",
-  "description": "Telegram Shop Bot with Modular Structure",
+  "description": "Modular Telegram Shop Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
