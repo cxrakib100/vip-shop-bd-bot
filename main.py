@@ -1,8 +1,6 @@
-# main.py
 import logging
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 
-import config
 from keyboards.menu_keyboards import (
     BTN_BUY_PRODUCT,
     BTN_PROFILE,
@@ -18,13 +16,18 @@ from handlers.profile import handle_profile
 from handlers.order_history import handle_order_history
 from handlers.support import handle_support
 
+# ==================== BOT CONFIG ====================
+BOT_TOKEN = "8260629531:AAHeqwYHFsLb_oh_Lpir3k7BKapOG-bxhmo"
+ADMIN_CHAT_ID = 6640939571
+# ====================================================
+
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 
 def main():
-    app = ApplicationBuilder().token(config.BOT_TOKEN).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     # /start কমান্ড
     app.add_handler(CommandHandler("start", start_command))
