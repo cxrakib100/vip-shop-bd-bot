@@ -1,13 +1,13 @@
 {
-  "name": "telegram-shop-bot",
+  "name": "vip-shop-bd-bot",
   "version": "1.0.0",
-  "description": "Telegram Shop Bot with styled buttons",
+  "description": "Telegram Shop Bot with Colored Buttons",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "dotenv": "^16.4.7",
-    "telegraf": "^4.16.3"
+    "express": "^4.19.2",
+    "node-telegram-bot-api": "^0.66.0"
   }
 }
