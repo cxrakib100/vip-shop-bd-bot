@@ -1,22 +1,20 @@
-// সব ধরনের বাটন এবং রং (Button Styles) এই ফাইলে সংরক্ষিত থাকবে
+// সব ধরনের বাটন এবং লেআউট এই ফাইলে সংরক্ষিত থাকবে
+// Telegram ReplyKeyboardButton-এ style/color property নেই; text ও layout অপরিবর্তিত রাখা হয়েছে।
 
-// ১. মেইন মেনু কিবোর্ড (হুবহু স্ক্রিনশটের কালার সহ)
+// ১. মেইন মেনু কিবোর্ড
 const mainKeyboard = {
   reply_markup: {
     keyboard: [
-      // ১ম সারি: সবুজ বাটন (success)
       [
-        { text: '🤑 Buy Product', style: 'success' }
+        { text: '🤑 Buy Product' }
       ],
-      // ২য় সারি: নীল বাটন (primary) এবং সবুজ বাটন (success)
       [
-        { text: '👤 Profile', style: 'primary' },
-        { text: '🏦 Deposit', style: 'success' }
+        { text: '👤 Profile' },
+        { text: '🏦 Deposit' }
       ],
-      // ৩য় সারি: নীল বাটন (primary) এবং লাল বাটন (danger)
       [
-        { text: '⌛ Order History', style: 'primary' },
-        { text: '🛡️ Support', style: 'danger' }
+        { text: '⌛ Order History' },
+        { text: '🛡️ Support' }
       ]
     ],
     resize_keyboard: true,
