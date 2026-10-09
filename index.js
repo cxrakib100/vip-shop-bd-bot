@@ -1,54 +1,45 @@
-require('dotenv').config();
-const { Telegraf } = require('telegraf');
-const http = require('http');
+const TelegramBot = require('node-telegram-bot-api');
+const express = require('express');
 
-// রেন্ডারের Environment Variables থেকে মান গ্রহণ করা হবে
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_ID = process.env.ADMIN_ID;
+// ১. টোকেন ও এডমিন আইডি সেটআপ (Render Environment অথবা সরাসরি কোড থেকে কাজ করবে)
+const BOT_TOKEN = process.env.BOT_TOKEN || '8260629531:AAHeqwYHFsLb_oh_Lpir3k7BKapOG-bxhmo';
+const ADMIN_ID = process.env.CHAT_ID || process.env.ADMIN_ID || '6640939571';
 
-if (!BOT_TOKEN) {
-  console.error("❌ ERROR: BOT_TOKEN পাওয়া যায়নি! Render Dashboard -> Environment এ BOT_TOKEN দিন।");
-  process.exit(1);
-}
+// ২. টেলিগ্রাম বট ইনিশিয়ালাইজ (Polling মোডে)
+const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-const bot = new Telegraf(BOT_TOKEN);
+// ৩. রেন্ডার (Render) যেন বন্ধ না হয় সেজন্য Express ওয়েব সার্ভার
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-// ডাটা স্টোরেজ
-const users = new Map();
+app.get('/', (req, res) => {
+  res.send('⚡ Telegram Bot is running live on Render!');
+});
 
-function getUserData(userId, name) {
-  if (!users.has(userId)) {
-    users.set(userId, {
-      name: name,
-      balance: 0,
-      orders: 0
-    });
-  }
-  return users.get(userId);
-}
+app.listen(PORT, () => {
+  console.log(`🌐 Web server is running on port ${PORT}`);
+});
 
-/**
- * বাটন ও কালার স্টাইল (Telegram Bot API 9.4+):
- * - 'success' = সবুজ বাটন (#52b75a)
- * - 'primary' = নীল বাটন (#36a6e8)
- * - 'danger'  = লাল বাটন (#eb5757)
- */
+// ইউজার আইডি সংরক্ষণের জন্য সেট (ব্রডকাস্টের জন্য)
+const activeUsers = new Set();
+
+// ৪. হুবহু স্ক্রিনশটের মতো ৫টি রঙিন বাটন কিবোর্ড (Reply Keyboard)
 const mainKeyboard = {
   reply_markup: {
     keyboard: [
-      // ১ম সারি: সবুজ বাটন (Full width)
+      // ১ম সারি: সবুজ বাটন (success)
       [
-        { text: "🤑 Buy Product", style: "success" }
+        { text: '🤑 Buy Product', style: 'success' }
       ],
-      // ২য় সারি: নীল ও সবুজ বাটন
+      // ২য় সারি: নীল বাটন (primary) এবং সবুজ বাটন (success)
       [
-        { text: "👤 Profile", style: "primary" },
-        { text: "🏛️ Deposit", style: "success" }
+        { text: '👤 Profile', style: 'primary' },
+        { text: '🏦 Deposit', style: 'success' }
       ],
-      // ৩য় সারি: নীল ও লাল বাটন
+      // ৩য় সারি: হালকা নীল/নীল বাটন (primary) এবং লাল বাটন (danger)
       [
-        { text: "⌛ Order History", style: "primary" },
-        { text: "🛡️ Support", style: "danger" }
+        { text: '⌛ Order History', style: 'primary' },
+        { text: '🛡️ Support', style: 'danger' }
       ]
     ],
     resize_keyboard: true,
@@ -56,221 +47,144 @@ const mainKeyboard = {
   }
 };
 
-// ১. /start কমান্ড (কালারফুল বাটন সহ ওয়েলকাম মেসেজ)
-bot.command('start', async (ctx) => {
-  try {
-    const user = ctx.from;
-    const userName = user.first_name || 'User';
-    getUserData(user.id, userName);
-
-    const welcomeMessage = `স্বাগতম <b>${userName}</b> !\n\nআমাদের শপে আপনাকে স্বাগতম। নিচের মেনু থেকে পছন্দ করুন 📥`;
-
-    await ctx.reply(welcomeMessage, {
-      parse_mode: 'HTML',
-      ...mainKeyboard
-    });
-
-    // নতুন ইউজার স্টার্ট করলে অ্যাডমিনকে অ্যালার্ট
-    if (ADMIN_ID && String(user.id) !== String(ADMIN_ID)) {
-      bot.telegram.sendMessage(
-        ADMIN_ID,
-        `🔔 <b>নতুন ইউজার বট চালু করেছে!</b>\n\n👤 নাম: ${userName}\n🆔 আইডি: <code>${user.id}</code>\n🌐 ইউজারনেম: @${user.username || 'নাই'}`,
-        { parse_mode: 'HTML' }
-      ).catch(() => {});
-    }
-  } catch (error) {
-    console.error("Start error:", error);
+// ৫. চ্যাট মেনু বাটন সেট করা (স্ক্রিনশটের উপরের '📟 Proxy' বাটন)
+bot.setChatMenuButton({
+  menu_button: {
+    type: 'web_app',
+    text: '📟 Proxy',
+    web_app: { url: 'https://telegram.org' }
   }
+}).catch((err) => {
+  // যদি কোনো ক্লায়েন্টে ওয়েব অ্যাপ সাপোর্ট না থাকে তবে এরর হ্যান্ডেল
+  console.log('ChatMenuButton info:', err.message);
 });
 
-// ২. স্টক মেসেজ কমান্ড (/stock)
-bot.command('stock', async (ctx) => {
-  try {
-    const stockMessage = 
-`আমাদের স্টক এ ভালো পরিমাণ এ মেটা স্টক এ আছে যাদের লাগবে নিয়ে কাজ করতে পাড়েন ধন্যবাদ সবাইকে..! ‼️ ‼️
+// ৬. /start কমান্ড হ্যান্ডলার (স্ক্রিনশট ১-এর মতো হুবহু ইন্টারফেস)
+bot.onText(/\/start/, async (msg) => {
+  const chatId = msg.chat.id;
+  const firstName = msg.from.first_name || 'Customer';
+  activeUsers.add(chatId);
 
-<blockquote>ফুল ফ্রেশ গেরান্টি..! 🟢 ”</blockquote>`;
-
-    await ctx.reply(stockMessage, {
-      parse_mode: 'HTML'
-    });
-  } catch (error) {
-    console.error("Stock error:", error);
-  }
-});
-
-// ৩. 🤑 Buy Product বাটন
-bot.hears(['🤑 Buy Product', 'Buy Product'], async (ctx) => {
-  const text = 
-`🛒 <b>আমাদের শপের পণ্য তালিকা:</b>
-
-1️⃣ <b>মেটা আইডি (Meta Old/Fresh)</b> - ৳১৫০
-2️⃣ <b>টেলিগ্রাম প্রিমিয়াম (১ মাস)</b> - ৳৩৫০
-3️⃣ <b>হাই স্পিড প্রক্সি (Proxy / VPN)</b> - ৳১০০
-
-<blockquote>পণ্য কেনার আগে একাউন্টে পর্যাপ্ত ব্যালেন্স ডিপোজিট করুন।</blockquote>`;
-
-  await ctx.reply(text, {
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "📦 মেটা স্টক কিনুন (৳১৫০)", callback_data: "buy_meta" }],
-        [{ text: "⭐ টেলিগ্রাম প্রিমিয়াম (৳৩৫০)", callback_data: "buy_tg" }],
-        [{ text: "🌐 প্রক্সি কানেক্ট করুন", url: "https://t.me/proxy" }]
-      ]
-    }
-  });
-});
-
-// ৪. 👤 Profile বাটন
-bot.hears(['👤 Profile', 'Profile'], async (ctx) => {
-  const user = ctx.from;
-  const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-  const username = user.username ? `@${user.username}` : 'নাই';
-  const userData = getUserData(user.id, user.first_name);
-
-  const profileText = 
-`👤 <b>আপনার প্রোফাইল তথ্য:</b>
-
-🆔 <b>ইউজার আইডি:</b> <code>${user.id}</code>
-👤 <b>নাম:</b> ${fullName}
-🌐 <b>ইউজারনেম:</b> ${username}
-💰 <b>ব্যালেন্স:</b> ৳ ${userData.balance}.00 BDT
-📦 <b>মোট অর্ডার:</b> ${userData.orders} টি`;
-
-  await ctx.reply(profileText, { parse_mode: 'HTML' });
-});
-
-// ৫. 🏛️ Deposit বাটন
-bot.hears(['🏛️ Deposit', 'Deposit'], async (ctx) => {
-  const depositText = 
-`🏛️ <b>ব্যালেন্স ডিপোজিট সিস্টেম:</b>
-
-টাকা পাঠানোর নম্বরসমূহ (Personal / Send Money):
-📱 <b>বিকাশ:</b> <code>01700000000</code>
-📱 <b>নগদ:</b> <code>01800000000</code>
-📱 <b>রকেট:</b> <code>01900000000</code>
-🌐 <b>Binance Pay ID:</b> <code>${ADMIN_ID || '12345678'}</code>
-
-<blockquote>টাকা সেন্ড মানি করে TrxID ও স্ক্রিনশট সহ নিচের বাটনে ক্লিক করে জানান। ১০-১৫ মিনিটের মধ্যে ব্যালেন্স যোগ হবে।</blockquote>`;
-
-  await ctx.reply(depositText, {
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "📩 ডিপোজিট রিকোয়েস্ট পাঠান", callback_data: "deposit_req" }]
-      ]
-    }
-  });
-});
-
-// ৬. ⌛ Order History বাটন
-bot.hears(['⌛ Order History', 'Order History'], async (ctx) => {
-  const historyText = 
-`⌛ <b>আপনার অর্ডার হিস্টোরি:</b>
-
-বর্তমানে আপনার কোনো পূর্ববর্তী অর্ডার রেকর্ড নেই। নতুন পণ্য অর্ডার করতে 'Buy Product' মেনুতে যান।`;
-
-  await ctx.reply(historyText, { parse_mode: 'HTML' });
-});
-
-// ৭. 🛡️ Support বাটন
-bot.hears(['🛡️ Support', 'Support'], async (ctx) => {
-  const supportText = 
-`🛡️ <b>কাস্টমার সাপোর্ট:</b>
-
-যেকোনো সমস্যা বা সহায়তার জন্য সরাসরি যোগাযোগ করুন:
-👨‍💻 <b>অ্যাডমিন আইডি:</b> <code>${ADMIN_ID || 'নাই'}</code>
-⏰ <b>সার্ভিস টাইম:</b> ২৪/৭ সর্বদা একটিভ।`;
-
-  const inlineButtons = [];
-  if (ADMIN_ID) {
-    inlineButtons.push([{ text: "💬 অ্যাডমিনকে মেসেজ দিন", url: `tg://user?id=${ADMIN_ID}` }]);
-  }
-
-  await ctx.reply(supportText, {
-    parse_mode: 'HTML',
-    reply_markup: inlineButtons.length > 0 ? { inline_keyboard: inlineButtons } : undefined
-  });
-});
-
-// ইনলাইন কলব্যাক অ্যাকশন
-bot.action('buy_meta', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.reply('⚠️ আপনার ব্যালেন্স অপর্যাপ্ত! প্রথমে 🏛️ Deposit মেনু থেকে ব্যালেন্স যোগ করুন।');
-});
-
-bot.action('buy_tg', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.reply('⚠️ আপনার ব্যালেন্স অপর্যাপ্ত! প্রথমে 🏛️ Deposit মেনু থেকে ব্যালেন্স যোগ করুন।');
-});
-
-bot.action('deposit_req', async (ctx) => {
-  await ctx.answerCbQuery();
-  const user = ctx.from;
-  await ctx.reply('✅ আপনার রিকোয়েস্ট গ্রহণ করা হয়েছে! অনুগ্রহ করে পেমেন্টের TrxID এবং স্ক্রিনশটটি চ্যাটে পাঠিয়ে দিন।');
+  // ১ম মেসেজ: স্বাগতম মেসেজ + রঙিন কিবোর্ড বাটন
+  const welcomeText = `🌸 <b>স্বাগতম ${firstName} !</b>\n\nআমাদের শপে আপনাকে স্বাগতম। নিচের মেনু থেকে পছন্দ করুন ⤵️`;
   
-  if (ADMIN_ID) {
-    bot.telegram.sendMessage(
-      ADMIN_ID,
-      `📥 <b>নতুন ডিপোজিট রিকোয়েস্ট!</b>\n\n👤 ইউজার: ${user.first_name}\n🆔 আইডি: <code>${user.id}</code>\n🌐 ইউজারনেম: @${user.username || 'নাই'}`,
-      { parse_mode: 'HTML' }
-    ).catch(() => {});
-  }
+  await bot.sendMessage(chatId, welcomeText, {
+    parse_mode: 'HTML',
+    ...mainKeyboard
+  });
+
+  // ২য় মেসেজ: হুবহু স্টক আপডেট ও কোটেশন ব্লক
+  const stockText = `আমাদের স্টক এ ভালো পরিমাণ এ মেটা স্টক এ আছে যাদের লাগবে নিয়ে কাজ করতে পারেন ধন্যবাদ সবাইকে..! ‼️ ‼️\n\n<blockquote>ফুল ফ্রেশ গ্যারান্টি..! 🟢 ”</blockquote>`;
+  
+  await bot.sendMessage(chatId, stockText, {
+    parse_mode: 'HTML'
+  });
 });
 
-// ৮. অ্যাডমিন ব্রডকাস্ট কমান্ড (/broadcast <মেসেজ>)
-bot.command('broadcast', async (ctx) => {
-  if (!ADMIN_ID || String(ctx.from.id) !== String(ADMIN_ID)) {
-    return ctx.reply('❌ এই কমান্ডটি কেবল অ্যাডমিনের জন্য!');
-  }
+// ৭. বাটনগুলোর রেসপন্স হ্যান্ডলার
 
-  const message = ctx.message.text.replace('/broadcast', '').trim();
-  if (!message) {
-    return ctx.reply('⚠️ ব্যবহারের নিয়ম: <code>/broadcast আপনার মেসেজ</code>', { parse_mode: 'HTML' });
-  }
+// (ক) 🤑 Buy Product
+bot.onText(/Buy Product/, async (msg) => {
+  const chatId = msg.chat.id;
+  const text = `🛍️ <b>পণ্য তালিকা (Available Products):</b>\n` +
+               `━━━━━━━━━━━━━━━━━━\n` +
+               `🔹 <b>১. মেটা / ফেসবুক একাউন্ট</b>\n` +
+               `• কোয়ালিটি: ফুল ফ্রেশ গ্যারান্টি\n` +
+               `• স্টক: পর্যাপ্ত আছে 🟢\n\n` +
+               `🔹 <b>২. প্রিমিয়াম প্রক্সি (Proxy)</b>\n` +
+               `• হাই স্পিড ডেডিকেটেড আইপি\n` +
+               `• স্টক: এভেইলেবল 🟢\n` +
+               `━━━━━━━━━━━━━━━━━━\n` +
+               `অর্ডার করতে নিচের বাটনে ক্লিক করে এডমিনের সাথে যোগাযোগ করুন:`;
 
+  await bot.sendMessage(chatId, text, {
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '💬 এডমিনকে মেসেজ দিন (Order Now)', url: `tg://user?id=${ADMIN_ID}` }]
+      ]
+    }
+  });
+});
+
+// (খ) 👤 Profile
+bot.onText(/Profile/, async (msg) => {
+  const chatId = msg.chat.id;
+  const firstName = msg.from.first_name || 'User';
+  const username = msg.from.username ? `@${msg.from.username}` : 'নাই';
+
+  const profileText = `👤 <b>আপনার প্রোফাইল তথ্য:</b>\n` +
+                      `━━━━━━━━━━━━━━━━━━\n` +
+                      `🆔 <b>আইডি:</b> <code>${chatId}</code>\n` +
+                      `📛 <b>নাম:</b> ${firstName}\n` +
+                      `📱 <b>ইউজারনেম:</b> ${username}\n` +
+                      `💰 <b>ব্যালেন্স:</b> 0.00 ৳ (BDT)\n` +
+                      `📦 <b>মোট অর্ডার:</b> 0 টি\n` +
+                      `━━━━━━━━━━━━━━━━━━`;
+
+  await bot.sendMessage(chatId, profileText, { parse_mode: 'HTML' });
+});
+
+// (গ) 🏦 Deposit
+bot.onText(/Deposit/, async (msg) => {
+  const chatId = msg.chat.id;
+  const depositText = `🏦 <b>টাকা ডিপোজিট করার উপায়:</b>\n` +
+                      `━━━━━━━━━━━━━━━━━━\n` +
+                      `আপনার অ্যাকাউন্টে টাকা যোগ করতে নিচের নম্বরে সেন্ড মানি করুন:\n\n` +
+                      `📱 <b>বিকাশ (Personal):</b> <code>017XXXXXXXX</code>\n` +
+                      `📱 <b>নগদ (Personal):</b> <code>019XXXXXXXX</code>\n` +
+                      `💵 <b>USDT (TRC20):</b> <code>TXxxxxxxxxxxxxxxxxxxx</code>\n` +
+                      `━━━━━━━━━━━━━━━━━━\n` +
+                      `⚠️ টাকা পাঠানোর পর TrxID এবং স্ক্রিনশট সাপোর্টে পাঠিয়ে ব্যালেন্স যোগ করে নিন।`;
+
+  await bot.sendMessage(chatId, depositText, { parse_mode: 'HTML' });
+});
+
+// (ঘ) ⌛ Order History
+bot.onText(/Order History/, async (msg) => {
+  const chatId = msg.chat.id;
+  const historyText = `⌛ <b>অর্ডার হিস্টোরি:</b>\n` +
+                      `━━━━━━━━━━━━━━━━━━\n` +
+                      `আপনার অ্যাকাউন্টে বর্তমানে কোনো অর্ডারের রেকর্ড নেই।\n` +
+                      `নতুন পণ্য কিনতে <b>🤑 Buy Product</b> বাটনে চাপুন।`;
+
+  await bot.sendMessage(chatId, historyText, { parse_mode: 'HTML' });
+});
+
+// (ঙ) 🛡️ Support
+bot.onText(/Support/, async (msg) => {
+  const chatId = msg.chat.id;
+  const supportText = `🛡️ <b>কাস্টমার সাপোর্ট:</b>\n` +
+                      `━━━━━━━━━━━━━━━━━━\n` +
+                      `যেকোনো প্রয়োজনে আমাদের অফিসিয়াল সাপোর্টে মেসেজ দিন:\n\n` +
+                      `👨‍💻 <b>এডমিন আইডি:</b> <a href="tg://user?id=${ADMIN_ID}">সরাসরি চ্যাট করুন</a>\n` +
+                      `📢 <b>অফিসিয়াল চ্যানেল:</b> https://t.me/A_ToolsX\n` +
+                      `⏰ <b>সাপোর্ট সময়:</b> ২৪/৭ সক্রিয়`;
+
+  await bot.sendMessage(chatId, supportText, { parse_mode: 'HTML' });
+});
+
+// ৮. এডমিন ব্রডকাস্ট কমান্ড (এডমিন চ্যাট থেকে মেসেজ পাঠাতে: /broadcast <আপনার মেসেজ>)
+bot.onText(/\/broadcast (.+)/, async (msg, match) => {
+  if (msg.chat.id.toString() !== ADMIN_ID.toString()) return;
+  const broadcastMsg = match[1];
   let count = 0;
-  for (const [userId] of users.entries()) {
+
+  for (const user of activeUsers) {
     try {
-      await bot.telegram.sendMessage(userId, message, { parse_mode: 'HTML' });
+      await bot.sendMessage(user, broadcastMsg, { parse_mode: 'HTML' });
       count++;
-    } catch (e) {}
+    } catch (e) {
+      // ইউজার বট ব্লক করলে এরর এড়িয়ে যাবে
+    }
   }
 
-  ctx.reply(`✅ মোট ${count} জন ইউজারের কাছে মেসেজ পাঠানো হয়েছে!`);
+  await bot.sendMessage(ADMIN_ID, `✅ ব্রডকাস্ট সম্পন্ন হয়েছে! মোট ${count} জন ইউজারের কাছে পাঠানো হয়েছে।`);
 });
 
-bot.catch((err, ctx) => {
-  console.error(`Error in ${ctx.updateType}:`, err);
+// এরর লগিং যাতে বট কখনো ক্র্যাশ না করে
+bot.on('polling_error', (error) => {
+  console.log('Polling Error:', error.message);
 });
 
-// Render ফ্রি হোস্টিং পোর্ট
-const PORT = process.env.PORT || 3000;
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end('বটটি রেন্ডারে সচল রয়েছে!');
-});
-
-server.listen(PORT, () => {
-  console.log(`Web Server listening on port ${PORT}`);
-});
-
-// পুরনো Webhook মুছে দিয়ে ক্লিনভাবে বট রান করা
-async function startBot() {
-  try {
-    console.log('পুরনো Webhook মোছা হচ্ছে...');
-    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-    console.log('পুরনো Webhook সফলভাবে ক্লিয়ার হয়েছে!');
-
-    await bot.launch();
-    console.log('✅ Telegram Bot সফলভাবে চালু হয়েছে এবং মেসেজ রিসিভ করছে!');
-  } catch (err) {
-    console.error('❌ Bot launch failed:', err);
-  }
-}
-
-startBot();
-
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+console.log('🤖 বট সফলভাবে চালু হয়েছে!');
