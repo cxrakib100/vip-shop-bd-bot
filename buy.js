@@ -5,10 +5,8 @@ module.exports = function(bot, ADMIN_ID) {
   bot.onText(/Buy Product|🤑 Buy Product|\/buy/i, async (msg) => {
     const chatId = msg.chat.id;
 
-    // স্ক্রিনশটের মতো বোল্ড ডিজাইন মেসেজ
     const categoryText = `🤑 *কী কিনতে চান? নিচের ক্যাটাগরি থেকে পছন্দ করুন:*`;
 
-    // স্ক্রিনশটের হুবহু কালার ও বাটন
     const categoryKeyboard = {
       reply_markup: {
         inline_keyboard: [
@@ -43,67 +41,62 @@ module.exports = function(bot, ADMIN_ID) {
     });
   });
 
-  // ২. ক্যাটাগরি বাটনে ক্লিক করার হ্যান্ডলার (যাতে পরবর্তীতে আপনি এর ভেতরে আরও প্রোডাক্ট যোগ করতে পারেন)
+  // ২. বাটন কলব্যাক হ্যান্ডলার
   bot.on("callback_query", async (query) => {
     const chatId = query.message.chat.id;
     const messageId = query.message.message_id;
     const data = query.data;
 
-    // ক্যাটাগরি ১: ALL VPN
-    if (data === "cat_vpn") {
+    // ক্যাটাগরি ১: Trusted Mail (স্ক্রিনশটের হুবহু ৫টি প্রোডাক্ট সহ অপশন)
+    if (data === "cat_mail") {
       bot.answerCallbackQuery(query.id);
-      const vpnText = `🔑 *ALL VPN ক্যাটাগরি:*
-━━━━━━━━━━━━━━
-বর্তমানে উপলব্ধ VPN সমূহ:
-• *Nord VPN*
-• *Express VPN*
-• *Surfshark VPN*
 
-*(এখানে আপনি পরবর্তীতে আপনার নির্দিষ্ট প্যাকেজ ও মূল্য যুক্ত করতে পারবেন)*
-━━━━━━━━━━━━━━`;
+      const mailText = `🛍️ *Trusted Mail প্রোডাক্ট সিলেক্ট করুন:*`;
 
-      const actionKeyboard = {
+      const mailKeyboard = {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "💬 সরাসরি কিনতে এডমিন চ্যাট", url: `tg://user?id=${ADMIN_ID}` }
+              { 
+                text: "Outlook fr | 1.00 TK | Out of Stock", 
+                callback_data: "prod_out_of_stock_outlook",
+                style: "primary"
+              }
             ],
             [
-              { text: "🔙 পেছনে যান (Back)", callback_data: "back_to_categories" }
-            ]
-          ]
-        }
-      };
-
-      await bot.editMessageText(vpnText, {
-        chat_id: chatId,
-        message_id: messageId,
-        parse_mode: "Markdown",
-        ...actionKeyboard
-      });
-    }
-
-    // ক্যাটাগরি ২: Trusted Mail
-    else if (data === "cat_mail") {
-      bot.answerCallbackQuery(query.id);
-      const mailText = `✉️ *Trusted Mail ক্যাটাগরি:*
-━━━━━━━━━━━━━━
-বর্তমানে উপলব্ধ মেইল সমূহ:
-• *Gmail (Old / Fresh)*
-• *Outlook / Hotmail*
-• *Yahoo Mail*
-
-*(এখানে আপনি পরবর্তীতে আপনার নির্দিষ্ট মেইল প্যাকেজ ও রেট যুক্ত করতে পারবেন)*
-━━━━━━━━━━━━━━`;
-
-      const actionKeyboard = {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "💬 সরাসরি কিনতে এডমিন চ্যাট", url: `tg://user?id=${ADMIN_ID}` }
+              { 
+                text: "Hotmail | 1.00 TK | Out of Stock", 
+                callback_data: "prod_out_of_stock_hotmail",
+                style: "primary"
+              }
             ],
             [
-              { text: "🔙 পেছনে যান (Back)", callback_data: "back_to_categories" }
+              { 
+                text: "Meta AI ID | 0.50 TK | Out of Stock", 
+                callback_data: "prod_out_of_stock_meta_ai",
+                style: "primary"
+              }
+            ],
+            [
+              { 
+                text: "Meta AI OTP access | 0.60 TK | Out of Stock", 
+                callback_data: "prod_out_of_stock_meta_otp",
+                style: "primary"
+              }
+            ],
+            [
+              { 
+                text: "Meta Horizon | 0.60 TK | Out of Stock", 
+                callback_data: "prod_out_of_stock_meta_horizon",
+                style: "primary"
+              }
+            ],
+            [
+              { 
+                text: "🔙 Back", 
+                callback_data: "back_to_categories",
+                style: "success" // সবুজ ব্যাক বাটন
+              }
             ]
           ]
         }
@@ -113,31 +106,67 @@ module.exports = function(bot, ADMIN_ID) {
         chat_id: chatId,
         message_id: messageId,
         parse_mode: "Markdown",
-        ...actionKeyboard
+        ...mailKeyboard
       });
     }
 
-    // ক্যাটাগরি ৩: Proxy
-    else if (data === "cat_proxy") {
-      bot.answerCallbackQuery(query.id);
-      const proxyText = `📲 *Proxy ক্যাটাগরি:*
-━━━━━━━━━━━━━━
-বর্তমানে উপলব্ধ প্রক্সি সমূহ:
-• *Residential Proxy*
-• *Dedicated ISP Proxy*
-• *Rotating Proxy*
+    // ক্যাটাগরি ২: ALL VPN (সোল্ড আউট)
+    else if (data === "cat_vpn") {
+      bot.answerCallbackQuery(query.id, { 
+        text: "❌ দুঃখিত, ALL VPN বর্তমানে স্টক আউট (Sold Out)!", 
+        show_alert: true 
+      });
 
-*(এখানে আপনি পরবর্তীতে আপনার নির্দিষ্ট প্রক্সি প্যাকেজ ও রেট যুক্ত করতে পারবেন)*
+      const vpnText = `🔑 *ALL VPN ক্যাটাগরি:*
+━━━━━━━━━━━━━━
+❌ *স্টক স্ট্যাটাস: সোল্ড আউট (Sold Out / Out of Stock)*
+
+বর্তমানে কোনো VPN স্টক এভেইলেবল নেই। নতুন স্টক আসলে আপডেট দেওয়া হবে।
 ━━━━━━━━━━━━━━`;
 
-      const actionKeyboard = {
+      const backKeyboard = {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "💬 সরাসরি কিনতে এডমিন চ্যাট", url: `tg://user?id=${ADMIN_ID}` }
+              { text: "💬 এডমিন হেল্পলাইন", url: `tg://user?id=${ADMIN_ID}` }
             ],
             [
-              { text: "🔙 পেছনে যান (Back)", callback_data: "back_to_categories" }
+              { text: "🔙 Back", callback_data: "back_to_categories", style: "success" }
+            ]
+          ]
+        }
+      };
+
+      await bot.editMessageText(vpnText, {
+        chat_id: chatId,
+        message_id: messageId,
+        parse_mode: "Markdown",
+        ...backKeyboard
+      });
+    }
+
+    // ক্যাটাগরি ৩: Proxy (সোল্ড আউট)
+    else if (data === "cat_proxy") {
+      bot.answerCallbackQuery(query.id, { 
+        text: "❌ দুঃখিত, Proxy বর্তমানে স্টক আউট (Sold Out)!", 
+        show_alert: true 
+      });
+
+      const proxyText = `📲 *Proxy ক্যাটাগরি:*
+━━━━━━━━━━━━━━
+❌ *স্টক স্ট্যাটাস: সোল্ড আউট (Sold Out / Out of Stock)*
+
+বর্তমানে কোনো Proxy স্টক এভেইলেবল নেই। নতুন স্টক আসলে আপডেট দেওয়া হবে।
+━━━━━━━━━━━━━━`;
+
+      const backKeyboard = {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "💬 এডমিন হেল্পলাইন", url: `tg://user?id=${ADMIN_ID}` }
+            ],
+            [
+              { text: "🔙 Back", callback_data: "back_to_categories", style: "success" }
             ]
           ]
         }
@@ -147,11 +176,19 @@ module.exports = function(bot, ADMIN_ID) {
         chat_id: chatId,
         message_id: messageId,
         parse_mode: "Markdown",
-        ...actionKeyboard
+        ...backKeyboard
       });
     }
 
-    // পেছনের ক্যাটাগরিতে ফেরত আসা (Back Button)
+    // ট্রাস্টেড মেইলের আউট অব স্টক প্রোডাক্টে ক্লিক করলে অ্যালার্ট পপআপ
+    else if (data.startsWith("prod_out_of_stock_")) {
+      bot.answerCallbackQuery(query.id, {
+        text: "⚠️ দুঃখিত, এই প্রোডাক্টটি বর্তমানে স্টক আউট (Out of Stock)!",
+        show_alert: true
+      });
+    }
+
+    // 🔙 Back বাটন: আবার প্রধান ক্যাটাগরিতে ফিরে যাওয়া
     else if (data === "back_to_categories") {
       bot.answerCallbackQuery(query.id);
       const categoryText = `🤑 *কী কিনতে চান? নিচের ক্যাটাগরি থেকে পছন্দ করুন:*`;
