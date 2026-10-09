@@ -1,6 +1,8 @@
-// orderCalculator.js - অটোমেটিক ক্যালকুলেটর, নম্বর কিবোর্ড এবং লাইভ হিসাব সিস্টেম
+// orderCalculator.js - সুপার আল্ট্রা ফাস্ট ক্যালকুলেটর, ডায়ালপ্যাড ও লাইভ ব্যালেন্স সিস্টেম
+const fs = require('fs');
+const path = require('path');
 
-// ১. ৫টি প্রোডাক্টের ডাটাবেজ (নাম, প্রাইস ও স্টক)
+// ১. প্রোডাক্টের ডাটাবেজ (নাম, প্রাইস ও স্টক)
 const PRODUCTS = {
   view_prod_outlook: { key: "view_prod_outlook", name: "Outlook fr", price: 1.00, stock: 0 },
   view_prod_hotmail: { key: "view_prod_hotmail", name: "Hotmail", price: 1.00, stock: 0 },
@@ -11,12 +13,43 @@ const PRODUCTS = {
 
 // প্রোডাক্ট খুঁজে বের করার হেল্পার
 function getProduct(key) {
+  if (!key) return { key: "unknown", name: "Product", price: 1.00, stock: 0 };
   if (PRODUCTS[key]) return PRODUCTS[key];
-  const matched = Object.values(PRODUCTS).find(p => p.key === key || key.includes(p.key.replace("view_prod_", "")));
-  return matched || { key: key, name: "Product", price: 1.00, stock: 0 };
+  for (const k in PRODUCTS) {
+    if (k.toLowerCase() === key.toLowerCase() ||
+        k.toLowerCase().includes(key.toLowerCase()) ||
+        key.toLowerCase().includes(k.toLowerCase().replace("view_prod_", ""))) {
+      return PRODUCTS[k];
+    }
+  }
+  return { key: key, name: key, price: 1.00, stock: 0 };
 }
 
-// বাংলা সংখ্যা থেকে ইংরেজি সংখ্যা রূপান্তর
+// ইউজারের লাইভ ব্যালেন্স পাওয়ার ফাংশন (users.json বা ডাটাবেজ ফাইল চেক করবে)
+function getUserBalance(userId) {
+  try {
+    const files = ['users.json', 'data.json', 'database.json', 'db.json', 'userData.json'];
+    for (const f of files) {
+      const fullPath = path.resolve(process.cwd(), f);
+      if (fs.existsSync(fullPath)) {
+        const data = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+        if (data[userId] && data[userId].balance !== undefined) {
+          return parseFloat(data[userId].balance).toFixed(2);
+        }
+        if (data.users && data.users[userId] && data.users[userId].balance !== undefined) {
+          return parseFloat(data.users[userId].balance).toFixed(2);
+        }
+        if (Array.isArray(data)) {
+          const u = data.find(x => x.id == userId || x.userId == userId || x.chatId == userId);
+          if (u && u.balance !== undefined) return parseFloat(u.balance).toFixed(2);
+        }
+      }
+    }
+  } catch (e) {}
+  return "0.00";
+}
+
+// বাংলা ও ইংরেজি উভয় সংখ্যা পার্স করার ফাংশন
 function parseNumber(input) {
   if (!input) return 1;
   const banglaDigits = {
@@ -35,14 +68,21 @@ function calculateTotal(unitPrice, quantity) {
   return (price * qty).toFixed(2);
 }
 
-// লাইভ প্রোডাক্ট কার্ড তৈরি
-function formatOrderCard(product, quantity) {
+// লাইভ প্রোডাক্ট কার্ড তৈরি (ব্যালেন্স ও টাইপকৃত পরিমাণ সহ)
+function formatOrderCard(product, quantity, balance, currentTyped = null) {
   const qty = parseInt(quantity, 10) || 1;
   const unitPrice = parseFloat(product.price).toFixed(2);
   const totalCost = calculateTotal(unitPrice, qty);
   const stockText = product.stock > 0 ? `✅ In Stock (${product.stock})` : '❌ Out of Stock';
+  const userBalance = parseFloat(balance || 0).toFixed(2);
 
-  return `🤑 *${product.name}*\n💰 *প্রাইস:* ${unitPrice} TK\n*স্টক:* ${stockText}\n\n*পরিমাণ:* ${qty}\n*মোট খরচ:* ${totalCost} TK`;
+  let text = `🤑 *${product.name}*\n💰 *প্রাইস:* ${unitPrice} TK\n*স্টক:* ${stockText}\n\n*পরিমাণ:* ${qty}\n*মোট খরচ:* ${totalCost} TK\n💳 *Balance:* ${userBalance} TK`;
+
+  if (currentTyped !== null) {
+    text += `\n\n⌨️ *টাইপকৃত পরিমাণ:* ${currentTyped}`;
+  }
+
+  return text;
 }
 
 // সাধারণ প্লাস/মাইনাস কিবোর্ড
@@ -52,15 +92,15 @@ function getStandardKeyboard(prodKey, quantity) {
   return {
     inline_keyboard: [
       [
-        { text: '➖', callback_data: `calc:dec:${prodKey}:${qty}` },
-        { text: `${qty}`, callback_data: `calc:numpad:${prodKey}:${qty}` },
-        { text: '➕', callback_data: `calc:inc:${prodKey}:${qty}` }
+        { text: '➖', callback_data: `calc:dec:${prodKey}` },
+        { text: `${qty}`, callback_data: `calc:numpad:${prodKey}` },
+        { text: '➕', callback_data: `calc:inc:${prodKey}` }
       ],
       [
-        { text: '✏️ Custom Quantity (নম্বর কিবোর্ড)', callback_data: `calc:numpad:${prodKey}:${qty}` }
+        { text: '✏️ Custom Quantity (নম্বর কিবোর্ড)', callback_data: `calc:numpad:${prodKey}` }
       ],
       [
-        { text: 'Confirm Order', callback_data: `calc:confirm:${prodKey}:${qty}` },
+        { text: 'Confirm Order', callback_data: `calc:confirm:${prodKey}` },
         { text: 'Cancel', callback_data: 'cat:trusted_mail' }
       ],
       [
@@ -70,7 +110,7 @@ function getStandardKeyboard(prodKey, quantity) {
   };
 }
 
-// সরাসরি স্ক্রিনে লাইভ নম্বর কিবোর্ড (অন-স্ক্রিন ডায়ালপ্যাড)
+// সরাসরি অন-স্ক্রিন নম্বর কিবোর্ড (ডায়ালপ্যাড)
 function getNumPadKeyboard(prodKey, currentTyped) {
   const displayQty = currentTyped || '1';
 
@@ -94,224 +134,199 @@ function getNumPadKeyboard(prodKey, currentTyped) {
       [
         { text: '⌫ Clear', callback_data: `num:clear:${prodKey}` },
         { text: '0', callback_data: `num:add:${prodKey}:0` },
-        { text: '✅ Done (হিসাব সম্পন্ন)', callback_data: `num:done:${prodKey}:${displayQty}` }
+        { text: '✅ Done (হিসাব সম্পন্ন)', callback_data: `num:done:${prodKey}` }
       ],
       [
-        { text: '⌨️ চ্যাটে টাইপ করুন (Type in Chat)', callback_data: `num:chat:${prodKey}` }
-      ],
-      [
-        { text: '🔙 Back', callback_data: `calc:back:${prodKey}:${displayQty}` }
+        { text: '🔙 Back', callback_data: `calc:back:${prodKey}` }
       ]
     ]
   };
 }
 
-// ২. মূল হ্যান্ডলার যা buyProduct.js থেকে কল হবে
+// ২. মেমোরিতে আল্ট্রা ফাস্ট রেন্ডারিং কিউ (Queue)
+const userState = new Map();
+
+async function enqueueUpdate(chatId, bot) {
+  const state = userState.get(chatId);
+  if (!state || !state.messageId) return;
+
+  if (state.isUpdating) {
+    state.hasPending = true;
+    return;
+  }
+
+  state.isUpdating = true;
+  state.hasPending = false;
+
+  try {
+    const product = getProduct(state.prodKey);
+    const balance = getUserBalance(chatId);
+    let text, reply_markup;
+
+    if (state.mode === 'numpad') {
+      text = formatOrderCard(product, state.qty, balance, state.typed);
+      reply_markup = getNumPadKeyboard(state.prodKey, state.typed);
+    } else {
+      text = formatOrderCard(product, state.qty, balance, null);
+      reply_markup = getStandardKeyboard(state.prodKey, state.qty);
+    }
+
+    await bot.editMessageText(text, {
+      chat_id: chatId,
+      message_id: state.messageId,
+      parse_mode: 'Markdown',
+      reply_markup: reply_markup
+    });
+  } catch (err) {
+    // একই মেসেজ রেন্ডার হলে টেলিগ্রামের এরর নীরব রাখা
+  } finally {
+    state.isUpdating = false;
+    if (state.hasPending) {
+      enqueueUpdate(chatId, bot);
+    }
+  }
+}
+
+// ৩. মূল হ্যান্ডলার ফাংশন
 function handleOrderCalculator(bot, ADMIN_ID, getTrustedMailView) {
-  // ডায়ালপ্যাড টাইপিং সেশন এবং চ্যাট ইনপুট ট্র্যাক করার জন্য মেমোরি
-  const numpadSession = new Map();
-  const chatInputSession = new Map();
 
   bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const messageId = query.message.message_id;
     const data = query.data;
 
-    // ক) Trusted Mail-এর ৫টি প্রোডাক্টের যেকোনো একটিতে চাপ দিলে ক্যালকুলেটর ওপেন হবে
+    // ক্লিকের উত্তর সাথে সাথে ব্যাকগ্রাউন্ডে নিশ্চিত করা (যাতে কোনো লোডিং/হ্যাং না হয়)
+    bot.answerCallbackQuery(query.id).catch(() => {});
+
+    // ক) প্রোডাক্টে চাপ দিলে ক্যালকুলেটর ওপেন
     if (data.startsWith('view_prod_')) {
-      await bot.answerCallbackQuery(query.id);
       const product = getProduct(data);
-      const initialQty = 1;
+      const balance = getUserBalance(chatId);
+
+      userState.set(chatId, {
+        prodKey: product.key,
+        qty: 1,
+        mode: 'standard',
+        typed: '1',
+        isNewInput: true,
+        messageId: messageId,
+        isUpdating: false,
+        hasPending: false
+      });
 
       try {
-        await bot.editMessageText(formatOrderCard(product, initialQty), {
+        await bot.editMessageText(formatOrderCard(product, 1, balance, null), {
           chat_id: chatId,
           message_id: messageId,
           parse_mode: 'Markdown',
-          reply_markup: getStandardKeyboard(product.key, initialQty)
+          reply_markup: getStandardKeyboard(product.key, 1)
         });
       } catch (err) {}
     }
 
-    // খ) প্লাস (➕) বাটন
-    else if (data.startsWith('calc:inc:')) {
-      await bot.answerCallbackQuery(query.id);
-      const [, , prodKey, qtyStr] = data.split(':');
-      const product = getProduct(prodKey);
-      const newQty = parseInt(qtyStr, 10) + 1;
-
-      try {
-        await bot.editMessageText(formatOrderCard(product, newQty), {
-          chat_id: chatId,
-          message_id: messageId,
-          parse_mode: 'Markdown',
-          reply_markup: getStandardKeyboard(prodKey, newQty)
-        });
-      } catch (err) {}
+    // খ) প্লাস (➕) বাটন (টপাটপ ক্লিক করলেও সুপারফাস্ট কাজ করবে)
+    else if (data.startsWith('calc:inc')) {
+      let state = userState.get(chatId);
+      if (!state) {
+        const parts = data.split(':');
+        state = { prodKey: parts[2] || 'view_prod_outlook', qty: 1, mode: 'standard', typed: '1', isNewInput: true, messageId: messageId };
+        userState.set(chatId, state);
+      }
+      state.qty += 1;
+      state.typed = state.qty.toString();
+      state.mode = 'standard';
+      state.messageId = messageId;
+      enqueueUpdate(chatId, bot);
     }
 
     // গ) মাইনাস (➖) বাটন
-    else if (data.startsWith('calc:dec:')) {
-      const [, , prodKey, qtyStr] = data.split(':');
-      const currentQty = parseInt(qtyStr, 10);
-
-      if (currentQty <= 1) {
-        await bot.answerCallbackQuery(query.id, { text: '⚠️ সর্বনিম্ন পরিমাণ ১ টি!' });
-        return;
+    else if (data.startsWith('calc:dec')) {
+      let state = userState.get(chatId);
+      if (!state) {
+        const parts = data.split(':');
+        state = { prodKey: parts[2] || 'view_prod_outlook', qty: 1, mode: 'standard', typed: '1', isNewInput: true, messageId: messageId };
+        userState.set(chatId, state);
       }
-
-      await bot.answerCallbackQuery(query.id);
-      const product = getProduct(prodKey);
-      const newQty = currentQty - 1;
-
-      try {
-        await bot.editMessageText(formatOrderCard(product, newQty), {
-          chat_id: chatId,
-          message_id: messageId,
-          parse_mode: 'Markdown',
-          reply_markup: getStandardKeyboard(prodKey, newQty)
-        });
-      } catch (err) {}
+      if (state.qty > 1) {
+        state.qty -= 1;
+        state.typed = state.qty.toString();
+        state.mode = 'standard';
+        state.messageId = messageId;
+        enqueueUpdate(chatId, bot);
+      }
     }
 
-    // ঘ) নম্বর কিবোর্ড বা ডায়ালপ্যাড ওপেন করা
-    else if (data.startsWith('calc:numpad:')) {
-      await bot.answerCallbackQuery(query.id);
-      const [, , prodKey, qtyStr] = data.split(':');
-      const product = getProduct(prodKey);
-
-      numpadSession.set(chatId, { prodKey, typed: qtyStr || '1' });
-
-      try {
-        await bot.editMessageText(
-          formatOrderCard(product, qtyStr) + '\n\n⌨️ *নিচের ডায়ালপ্যাড চেপে পরিমাণ নির্ধারণ করুন:*',
-          {
-            chat_id: chatId,
-            message_id: messageId,
-            parse_mode: 'Markdown',
-            reply_markup: getNumPadKeyboard(prodKey, qtyStr)
-          }
-        );
-      } catch (err) {}
+    // ঘ) নম্বর কিবোর্ড বা ডায়ালপ্যাড ওপেন
+    else if (data.startsWith('calc:numpad')) {
+      const state = userState.get(chatId) || {
+        prodKey: data.split(':')[2] || 'view_prod_outlook',
+        qty: 1,
+        messageId: messageId
+      };
+      state.mode = 'numpad';
+      state.typed = state.qty.toString();
+      state.isNewInput = true; // প্রথমবার টাইপের সময় নতুন ইনপুট ধরবে
+      state.messageId = messageId;
+      userState.set(chatId, state);
+      enqueueUpdate(chatId, bot);
     }
 
-    // ঙ) ডায়ালপ্যাডে নম্বর চাপলে (num:add)
+    // ঙ) ডায়ালপ্যাডে সংখ্যা টাইপ করা (যেমন: ১০০, ৮০, ৫০ ইত্যাদি সহজে উঠবে)
     else if (data.startsWith('num:add:')) {
-      await bot.answerCallbackQuery(query.id);
       const [, , prodKey, digit] = data.split(':');
-      const product = getProduct(prodKey);
-
-      let current = numpadSession.get(chatId)?.typed || '1';
-      if (current === '1' || current === '0') {
-        current = digit;
-      } else {
-        current = current + digit;
+      let state = userState.get(chatId);
+      if (!state) {
+        state = { prodKey, qty: 1, mode: 'numpad', typed: '1', isNewInput: true, messageId };
+        userState.set(chatId, state);
       }
-      if (current.length > 5) current = current.slice(0, 5); // সর্বোচ্চ ৫ সংখ্যার সীমা
 
-      numpadSession.set(chatId, { prodKey, typed: current });
-      const qty = parseNumber(current);
+      state.mode = 'numpad';
+      state.messageId = messageId;
 
-      try {
-        await bot.editMessageText(
-          formatOrderCard(product, qty) + `\n\n⌨️ *টাইপকৃত পরিমাণ:* ${current}`,
-          {
-            chat_id: chatId,
-            message_id: messageId,
-            parse_mode: 'Markdown',
-            reply_markup: getNumPadKeyboard(prodKey, current)
-          }
-        );
-      } catch (err) {}
+      if (state.isNewInput || state.typed === '0') {
+        state.typed = digit;
+        state.isNewInput = false;
+      } else {
+        if (state.typed.length < 6) { // সর্বোচ্চ ৬ ডিজিট পর্যন্ত টাইপ করা যাবে
+          state.typed = state.typed + digit;
+        }
+      }
+
+      state.qty = parseNumber(state.typed);
+      enqueueUpdate(chatId, bot);
     }
 
-    // চ) ডায়ালপ্যাড ক্লিয়ার (num:clear)
+    // চ) ক্লিয়ার বাটন (⌫ Clear)
     else if (data.startsWith('num:clear:')) {
-      await bot.answerCallbackQuery(query.id);
-      const [, , prodKey] = data.split(':');
-      const product = getProduct(prodKey);
-
-      let current = numpadSession.get(chatId)?.typed || '1';
-      if (current.length > 1) {
-        current = current.slice(0, -1);
-      } else {
-        current = '1';
+      let state = userState.get(chatId);
+      if (state) {
+        state.mode = 'numpad';
+        state.messageId = messageId;
+        if (state.typed.length > 1) {
+          state.typed = state.typed.slice(0, -1);
+        } else {
+          state.typed = '1';
+          state.isNewInput = true;
+        }
+        state.qty = parseNumber(state.typed);
+        enqueueUpdate(chatId, bot);
       }
-
-      numpadSession.set(chatId, { prodKey, typed: current });
-      const qty = parseNumber(current);
-
-      try {
-        await bot.editMessageText(
-          formatOrderCard(product, qty) + `\n\n⌨️ *টাইপকৃত পরিমাণ:* ${current}`,
-          {
-            chat_id: chatId,
-            message_id: messageId,
-            parse_mode: 'Markdown',
-            reply_markup: getNumPadKeyboard(prodKey, current)
-          }
-        );
-      } catch (err) {}
     }
 
-    // ছ) ডায়ালপ্যাড সম্পন্ন (num:done) অথবা ব্যাক (calc:back)
-    else if (data.startsWith('num:done:') || data.startsWith('calc:back:')) {
-      await bot.answerCallbackQuery(query.id);
-      const parts = data.split(':');
-      const prodKey = parts[2];
-      const typed = numpadSession.get(chatId)?.typed || parts[3] || '1';
-      const qty = parseNumber(typed);
-      const product = getProduct(prodKey);
-
-      numpadSession.delete(chatId);
-
-      try {
-        await bot.editMessageText(formatOrderCard(product, qty), {
-          chat_id: chatId,
-          message_id: messageId,
-          parse_mode: 'Markdown',
-          reply_markup: getStandardKeyboard(prodKey, qty)
-        });
-      } catch (err) {}
-    }
-
-    // জ) চ্যাটে টাইপ করে পরিমাণ দেওয়ার অপশন (num:chat)
-    else if (data.startsWith('num:chat:')) {
-      await bot.answerCallbackQuery(query.id);
-      const [, , prodKey] = data.split(':');
-
-      chatInputSession.set(chatId, { prodKey });
-      await bot.sendMessage(chatId, '✍️ *আপনি কয়টি নিতে চান? সংখ্যাটি চ্যাটে লিখে সেন্ড করুন (যেমন: 5 বা 10):*', {
-        parse_mode: 'Markdown'
-      });
-    }
-
-    // ঝ) অর্ডার কনফার্ম বাটন
-    else if (data.startsWith('calc:confirm:')) {
-      const [, , prodKey, qtyStr] = data.split(':');
-      const product = getProduct(prodKey);
-      const qty = parseNumber(qtyStr);
-
-      if (product.stock <= 0) {
-        await bot.answerCallbackQuery(query.id, {
-          text: '❌ দুঃখিত, এই পণ্যটি বর্তমানে স্টক আউট (Out of Stock)!',
-          show_alert: true
-        });
-        return;
+    // ছ) ডায়ালপ্যাড সম্পন্ন (Done) বা ফিরে যাওয়া (Back)
+    else if (data.startsWith('num:done') || data.startsWith('calc:back')) {
+      let state = userState.get(chatId);
+      if (state) {
+        state.mode = 'standard';
+        state.messageId = messageId;
+        state.qty = parseNumber(state.typed);
+        enqueueUpdate(chatId, bot);
       }
-
-      await bot.answerCallbackQuery(query.id);
-      const total = calculateTotal(product.price, qty);
-      await bot.sendMessage(
-        chatId,
-        `✅ *অর্ডার গ্রহণ করা হয়েছে!*\n\n📦 *পণ্য:* ${product.name}\n🔢 *পরিমাণ:* ${qty}\n💰 *মোট বিল:* ${total} TK`,
-        { parse_mode: 'Markdown' }
-      );
     }
 
-    // ঞ) Cancel অথবা Back চেপে Trusted Mail লিস্টে ফেরা
+    // জ) ব্যাক বা ক্যান্সেল বাটন (ক্যাটাগরি তালিকায় ফেরা)
     else if (data === 'cat:trusted_mail') {
-      await bot.answerCallbackQuery(query.id);
+      userState.delete(chatId);
       if (typeof getTrustedMailView === 'function') {
         const { mailText, mailKeyboard } = getTrustedMailView();
         try {
@@ -324,24 +339,54 @@ function handleOrderCalculator(bot, ADMIN_ID, getTrustedMailView) {
         } catch (err) {}
       }
     }
+
+    // ঝ) অর্ডার কনফার্ম
+    else if (data.startsWith('calc:confirm')) {
+      const state = userState.get(chatId);
+      const prodKey = state?.prodKey || data.split(':')[2];
+      const qty = state?.qty || 1;
+      const product = getProduct(prodKey);
+      const balance = getUserBalance(chatId);
+
+      if (product.stock <= 0) {
+        await bot.answerCallbackQuery(query.id, {
+          text: '❌ দুঃখিত, এই পণ্যটি বর্তমানে স্টক আউট (Out of Stock)!',
+          show_alert: true
+        });
+        return;
+      }
+
+      const total = calculateTotal(product.price, qty);
+      await bot.sendMessage(
+        chatId,
+        `✅ *অর্ডার গ্রহণ করা হয়েছে!*\n\n📦 *পণ্য:* ${product.name}\n🔢 *পরিমাণ:* ${qty}\n💰 *মোট বিল:* ${total} TK\n💳 *ব্যালেন্স:* ${balance} TK`,
+        { parse_mode: 'Markdown' }
+      );
+    }
   });
 
-  // চ্যাটে ইউজার সংখ্যা লিখে পাঠালে তা গ্রহণ করা
+  // চ্যাটে বাংলা বা ইংরেজি সংখ্যা লিখে পাঠালেও লাইভ আপডেট হবে
   bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     if (!msg.text || msg.text.startsWith('/')) return;
 
-    if (chatInputSession.has(chatId)) {
-      const { prodKey } = chatInputSession.get(chatId);
-      chatInputSession.delete(chatId);
+    const state = userState.get(chatId);
+    if (!state || !state.messageId) return;
 
-      const qty = parseNumber(msg.text);
-      const product = getProduct(prodKey);
+    // মেসেজে বাংলা বা ইংরেজি সংখ্যা থাকলে
+    if (/[0-9০-৯]/.test(msg.text)) {
+      const parsed = parseNumber(msg.text);
+      if (parsed >= 1) {
+        state.qty = parsed;
+        state.typed = parsed.toString();
+        state.isNewInput = true;
 
-      await bot.sendMessage(chatId, formatOrderCard(product, qty), {
-        parse_mode: 'Markdown',
-        reply_markup: getStandardKeyboard(prodKey, qty)
-      });
+        // চ্যাট পরিচ্ছন্ন রাখতে মেসেজটি মুছে ফেলা (যদি পারমিশন থাকে)
+        bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+
+        // স্ক্রিনে সাথে সাথে লাইভ সংখ্যা আপডেট
+        enqueueUpdate(chatId, bot);
+      }
     }
   });
 }
@@ -352,5 +397,6 @@ module.exports = {
   formatOrderCard,
   getStandardKeyboard,
   getNumPadKeyboard,
+  getUserBalance,
   handleOrderCalculator
 };
