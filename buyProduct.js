@@ -32,7 +32,7 @@ function getTrustedMailView() {
 }
 
 module.exports = function(bot, ADMIN_ID) {
-  // ১. "Buy Product" বাটনে চাপ দিলে ক্যাটাগরি মেনু
+  // ১. "Buy Product" বাটনে চাপ দিলে সরাসরি শুধু ক্যাটাগরি আসবে (কোনো ওয়ার্নিং মেসেজ আসবে না)
   bot.onText(/Buy Product|🤑 Buy Product|\/buy/i, async (msg) => {
     const chatId = msg.chat.id;
 
@@ -53,13 +53,14 @@ module.exports = function(bot, ADMIN_ID) {
       }
     };
 
+    // শুধুমাত্র ক্যাটাগরি মেসেজটি পাঠানো হবে
     await bot.sendMessage(chatId, categoryText, {
       parse_mode: "Markdown",
       ...categoryKeyboard
     });
   });
 
-  // ২. ক্যাটাগরি কলব্যাক
+  // ২. ক্যাটাগরি বাটন হ্যান্ডলার
   bot.on("callback_query", async (query) => {
     const chatId = query.message.chat.id;
     const messageId = query.message.message_id;
@@ -93,7 +94,7 @@ module.exports = function(bot, ADMIN_ID) {
       });
     }
 
-    // ব্যাক বাটন
+    // ব্যাক বাটন (প্রধান ক্যাটাগরিতে ফেরা)
     else if (data === "back_to_categories") {
       bot.answerCallbackQuery(query.id);
       const categoryText = `🤑 *কী কিনতে চান? নিচের ক্যাটাগরি থেকে পছন্দ করুন:*`;
@@ -122,6 +123,6 @@ module.exports = function(bot, ADMIN_ID) {
     }
   });
 
-  // ৩. আলাদা ক্যালকুলেটর ফাইল যুক্ত করা
+  // ৩. ক্যালকুলেটরের হিসাব হ্যান্ডলার
   handleOrderCalculator(bot, ADMIN_ID, getTrustedMailView);
 };
