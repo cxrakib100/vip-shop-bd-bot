@@ -14,7 +14,7 @@ app.listen(PORT, () => {
 });
 
 // ২. টোকেন ও এডমিন আইডি (রেন্ডার Environment থেকে নিবে)
-const BOT_TOKEN = process.env.BOT_TOKEN || '8260629531:AAHeqwYHFsLb_oh_Lpir3k7BKapOG-bxhmo';
+const BOT_TOKEN = process.env.BOT_TOKEN || '8260629531:AAGmU_Wwx-_Cc70hThSEH1GAJv2kpVjI76M';
 const ADMIN_ID = process.env.ADMIN_ID || process.env.CHAT_ID || '6640939571';
 
 if (!BOT_TOKEN) {
