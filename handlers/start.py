@@ -5,18 +5,13 @@ from keyboards.menu_keyboards import get_main_menu_keyboard
 import config
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
+    channel_url = config.REQUIRED_CHANNELS[0]['url']
     
-    # চ্যানেল জয়েন নোটিশ মেসেজ (স্ক্রিনশটের মতো)
-    welcome_text = (
-        f"👋 হ্যালো {user.first_name}!\n\n"
-        f"🚀 To use this bot, you must join our channels:\n"
-        f"1. {config.REQUIRED_CHANNELS[0]['url']}\n"
-        f"2. {config.REQUIRED_CHANNELS[1]['url']}\n\n"
-        f"নিচের মেনু থেকে আপনার কাঙ্ক্ষিত অপশন সিলেক্ট করুন:"
-    )
+    # স্ক্রিনশট অনুযায়ী মেসেজ
+    message_text = f"🚀 To use this bot, you must join our channel: {channel_url}"
     
+    # reply_markup দিয়ে বাটন পাঠিয়ে দেওয়া হচ্ছে
     await update.message.reply_text(
-        text=welcome_text,
+        text=message_text,
         reply_markup=get_main_menu_keyboard()
     )
